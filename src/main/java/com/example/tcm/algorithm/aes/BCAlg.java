@@ -17,44 +17,40 @@ import java.security.Security;
 public class BCAlg extends AES {
 
     public static byte[] generateKey(int keysize) {
-        t1 = TimestampHelper.getTimestamp("Key Generation started: ");
         CipherKeyGenerator keyGen = new CipherKeyGenerator();
+        timer.start();
         keyGen.init(new KeyGenerationParameters(new SecureRandom(), keysize)); //key is 256 bits
         byte[] key = keyGen.generateKey();
-        t2 = TimestampHelper.getTimestamp("Key Generation ended: ");
-        TimestampHelper.displayTimeDistance("Key pair generation(BC) ", t1, t2);
-
+        logger.info("Key generation took {} ", timer.stop());
         return key;
     }
 
     public static byte[] encrypt(byte[] plain, CipherParameters ivAndKey) throws Exception {
-        t1 = TimestampHelper.getTimestamp("Encryption started: ");
         GCMBlockCipher aes = new GCMBlockCipher(new AESEngine());
         aes.init(true, ivAndKey);
+        timer.start();
         byte[] cipherMessage = cipherMessage(aes, plain);
-        t2 = TimestampHelper.getTimestamp("Encryption ended: ");
-        TimestampHelper.displayTimeDistance("Encryption AES(BC) ", t1, t2);
+        logger.info("Encrypt took {} ", timer.stop());
 
         return cipherMessage;
     }
 
     public static String decrypt(byte[] cipher, CipherParameters ivAndKey) throws Exception {
-        t1 = TimestampHelper.getTimestamp("Decryption started: ");
         GCMBlockCipher aes = new GCMBlockCipher(new AESEngine());
         aes.init(false, ivAndKey);
+        timer.start();
         byte[] message = cipherMessage(aes, cipher);
-        t2 = TimestampHelper.getTimestamp("Decryption ended: ");
-        TimestampHelper.displayTimeDistance("Decryption AES(BC) ", t1, t2);
-
+        logger.info("Decrypt took {} ", timer.stop());
         return new String(message, StandardCharsets.UTF_8);
     }
 
-    public static byte[] cipherMessage(GCMBlockCipher cipher, byte[] message) throws Exception {
-        //return the minimum size of the output buffer required for an update plus a doFinal with an input of len bytes.
-        byte[] outputBuffer = new byte[cipher.getOutputSize(message.length)];
-        //return the number of output bytes copied to outputBuffer.
-        int outputBytes = cipher.doFinal(outputBuffer, cipher.processBytes(message, 0, message.length, outputBuffer, 0));
-        byte[] result = new byte[outputBytes];
+    public static byte[] cipherMessage(GCMBlockCipher cipher, byte[] data) throws Exception {
+        byte[] outputBuffer = new byte[cipher.getOutputSize(data.length)];
+
+        int l1 = cipher.processBytes(data, 0, data.length, outputBuffer, 0);
+        int l2 = cipher.doFinal(outputBuffer, l1);
+
+        byte[] result = new byte[l1 + l2];
         System.arraycopy(outputBuffer, 0, result, 0, result.length);
 
         return result;
@@ -63,11 +59,11 @@ public class BCAlg extends AES {
 
     public static void main(String[] args) throws Exception {
         Security.addProvider(new BouncyCastleProvider());
-        String plainMessage = "Plain message";
+        String plainMessage = "Before the modern era, cryptography focused on message confidentiality (i.e., encryption)—conversion of messages from a comprehensible form into an incomprehensible one and back again at the other end, rendering it unreadable by interceptors or eavesdroppers without secret knowledge (namely the key needed for decryption of that message). Encryption attempted to ensure secrecy in communications, such as those of spies, military leaders, and diplomats. ";
         byte[] key = generateKey(AES_KEY_SIZE);
         byte[] iv = getRandomNonce(IV_LENGTH_BYTE);
         CipherParameters ivAndKey = new ParametersWithIV(new KeyParameter(key), iv);
-        byte[] encryptedMessage = encrypt(plainMessage.getBytes("UTF-8"), ivAndKey);
+        byte[] encryptedMessage = encrypt(plainMessage.getBytes(StandardCharsets.UTF_8), ivAndKey);
         String decryptedMessage = decrypt(encryptedMessage, ivAndKey);
         TimestampHelper.displayJavaRuntimeMemoryUsage();
         logger.info("Plain text was {} and decrypted text is: {}", plainMessage, decryptedMessage);

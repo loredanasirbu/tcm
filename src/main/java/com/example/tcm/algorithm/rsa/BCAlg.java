@@ -29,47 +29,39 @@ public class BCAlg extends RSA {
                         RSA_KEY_SIZE,//strength
                         80//certainty
                 ));
-        t1 = TimestampHelper.getTimestamp("Key Pair Generation started: ");
+        timer.start();
         AsymmetricCipherKeyPair keyPair = generator.generateKeyPair();
-        t2 = TimestampHelper.getTimestamp("Key Pair Generation ended: ");
-        TimestampHelper.displayTimeDistance("Key pair generation(BC) ", t1, t2);
-
+        logger.info("Key generation took {} ", timer.stop());
         return keyPair;
     }
 
-    public static String encrypt(byte[] data, AsymmetricKeyParameter publicKey) {
-        t1 = TimestampHelper.getTimestamp("Encryption started: ");
-        RSAEngine engine = new RSAEngine();
+    public static String encrypt(AsymmetricBlockCipher engine, byte[] data, AsymmetricKeyParameter publicKey) throws InvalidCipherTextException {
         engine.init(true, publicKey); //true if encrypt
+        timer.start();
         byte[] hexEncodedCipher = engine.processBlock(data, 0, data.length);
-        t2 = TimestampHelper.getTimestamp("Encryption ended: ");
-        TimestampHelper.displayTimeDistance("Encryption RSA(BC) ", t1, t2);
+        logger.info("Encrypt took {} ", timer.stop());
 
         return Helper.getHexString(hexEncodedCipher);
     }
 
-    public static String decrypt(String encrypted, AsymmetricKeyParameter privateKey) throws InvalidCipherTextException {
-        t1 = TimestampHelper.getTimestamp("Decryption started: ");
-        AsymmetricBlockCipher engine = new RSAEngine();
-        engine.init(false, privateKey); //false for decryption
-
+    public static String decrypt(AsymmetricBlockCipher engine, String encrypted, AsymmetricKeyParameter privateKey) throws InvalidCipherTextException {
+        engine.init(false, privateKey);
         byte[] encryptedBytes = Helper.hexStringToByteArray(encrypted);
+        timer.start();
         byte[] hexEncodedCipher = engine.processBlock(encryptedBytes, 0, encryptedBytes.length);
-        t2 = TimestampHelper.getTimestamp("Decryption ended: ");
-        TimestampHelper.displayTimeDistance("Decryption RSA(BC) ", t1, t2);
-
+        logger.info("Decrypt took {} ", timer.stop());
         return new String(hexEncodedCipher);
     }
 
     public static void main(String[] args) throws Exception {
         Security.addProvider(new BouncyCastleProvider());
-        String plainMessage = "Plain message";
-        AsymmetricCipherKeyPair asymmetricCipherKeyPair = BCAlg.getKey();
-        String encryptedMessage = encrypt(plainMessage.getBytes(StandardCharsets.UTF_8), asymmetricCipherKeyPair.getPublic());
-        logger.info(encryptedMessage);
-        String decryptedMessage = decrypt(encryptedMessage, asymmetricCipherKeyPair.getPrivate());
+        AsymmetricBlockCipher engine = new RSAEngine();
+        String plainMessage = "Before the modern era, cryptography focused on message confidentiality (i.e., encryption)—conversion of messages from a comprehensible form into an incomprehensible one and back again at the other end, rendering it unreadable by interceptors or eavesdroppers without secret knowledge (namely the key needed for decryption of that message). Encryption attempted to ensure secrecy in communications, such as those of spies, military leaders, and diplomats. ";
+        AsymmetricCipherKeyPair asymmetricCipherKeyPair = getKey();
+        String encryptedMessage = encrypt(engine, plainMessage.getBytes(StandardCharsets.UTF_8), asymmetricCipherKeyPair.getPublic());
+        String decryptedMessage = decrypt(engine, encryptedMessage, asymmetricCipherKeyPair.getPrivate());
         TimestampHelper.displayJavaRuntimeMemoryUsage();
-        logger.info("Plain message was: {}  and decrypted message is: {} ", plainMessage, decryptedMessage);
+        logger.info("Before the modern era, cryptography focused on message confidentiality (i.e., encryption)—conversion of messages from a comprehensible form into an incomprehensible one and back again at the other end, rendering it unreadable by interceptors or eavesdroppers without secret knowledge (namely the key needed for decryption of that message). Encryption attempted to ensure secrecy in communications, such as those of spies, military leaders, and diplomats. In recent decades, the field has expanded beyond confidentiality concerns to include techniques for message integrity checking, sender/receiver identity authentication, digital signatures, interactive proofs and secure computation, among others. was: {}  and decrypted message is: {} ", plainMessage, decryptedMessage);
     }
 
 }
